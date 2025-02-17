@@ -1,0 +1,135 @@
+# **📊 Expense Tracker - Automated Bank Statement Processing with Prefect**
+
+## **📌 Overview**
+This project automates the processing of **bank statements from different banks** (e.g., **Standard Chartered, UOB**). It uses **Prefect** to orchestrate workflows, **Streamlit** for file uploads, and **PostgreSQL** for structured data storage.
+
+### **🌟 Key Features**
+👉 **Bulk Upload Bank Statements** using a **Streamlit UI**  
+👉 **Automated Data Preprocessing** (Detects bank source, cleans transactions)  
+👉 **Transaction Categorization** using **LLM API** (Categorizes expenses)  
+👉 **Database Storage** in **PostgreSQL** (Prevents duplicates, ensures integrity)  
+👉 **Workflow Automation** with **Prefect** (Data pipeline automation)
+
+---
+
+## **📁 Project Structure**
+```
+expense_tracker/
+️️️️ src/
+    🗃 ui/                # Streamlit web app (upload UI)
+    🗃 pipelines/         # Prefect flows for processing transactions
+    🗃 utils/             # Helper functions for data processing
+️️️️ data/
+    🗃 raw/               # Unprocessed CSV files
+    🗃 processed/         # Cleaned and categorized data
+️️️️ prefect_blocks/        # Prefect storage and configurations
+️️️️ .env                   # Environment variables (DB credentials)
+️️️️ .gitignore             # Excludes sensitive files and unnecessary data
+️️️️ Dockerfile             # Containerization setup
+️️️️ requirements.txt       # Python dependencies
+️️️️ README.md              # Project documentation
+️️️️ run.py                 # Main script to start Streamlit UI
+```
+
+---
+
+## **🛠 Technologies Used**
+- **🛠 Prefect** → Task orchestration & scheduling  
+- **📊 PostgreSQL** → Stores structured expense data  
+- **🔧 Streamlit** → Upload bank statements via web UI  
+- **📦 Docker** → Containerized deployment  
+- **💜 Pandas** → CSV file processing  
+- **🌐 FastAPI (Future Scope)** → API for categorized transaction retrieval  
+
+---
+
+## **🚀 How It Works**
+1. **Upload CSV files** via **Streamlit UI**  
+2. **Prefect detects the bank type** and applies correct preprocessing  
+3. **Transaction amounts are cleaned & standardized**  
+4. **LLM API categorizes expenses** into predefined subcategories  
+5. **Finalized transactions are inserted into PostgreSQL** (duplicates are skipped)  
+
+---
+
+## **🛠 Setup & Installation**
+### **1️⃣ Clone the Repository**
+```sh
+git clone https://github.com/msbamhz/expense_tracker.git
+cd expense_tracker
+```
+
+### **2️⃣ Setup Python Environment**
+```sh
+python -m venv venv
+source venv/bin/activate  # On Mac/Linux
+venv\Scripts\activate  # On Windows
+pip install -r requirements.txt
+```
+
+### **3️⃣ Set Up Environment Variables**
+Create a `.env` file inside the root directory:
+```
+DB_NAME=FinanceTracker
+DB_USER=postgres
+DB_PASSWORD=yourpassword
+DB_HOST=localhost
+DB_PORT=5432
+```
+
+### **4️⃣ Start the Streamlit UI**
+```sh
+python run.py
+```
+or  
+```sh
+streamlit run src/ui/streamlit_csv_upload.py
+```
+
+### **5️⃣ Run Prefect Workflow**
+```sh
+prefect deployment serve
+```
+or
+```sh
+python src/pipelines/csv_pipeline.py  # Runs full pipeline
+```
+
+---
+
+## **💾 Database Schema**
+| Column Name         | Type          | Description |
+|---------------------|--------------|-------------|
+| `id`               | `SERIAL` (PK) | Unique transaction ID |
+| `transaction_date` | `DATE`        | Transaction date |
+| `description`      | `TEXT`        | Description of expense |
+| `amount`          | `NUMERIC(12,2)` | Amount spent |
+| `category`        | `TEXT`        | High-level category (e.g., "Food & Dining") |
+| `subcategory`     | `TEXT`        | More specific category (e.g., "Grab Food") |
+| `processed_at`    | `TIMESTAMP`   | Time when the transaction was processed |
+
+---
+
+## **🐮 Future Enhancements**
+- **📌 Add AI-based Categorization** using NLP for smarter expense tracking  
+- **📌 Deploy API for data retrieval** via **FastAPI**  
+- **📌 Add User Authentication** to manage personal finance securely  
+- **📌 Expand Bank Support** beyond **Standard Chartered & UOB**  
+
+---
+
+## **👨‍💻 Contributing**
+Feel free to fork this repo, create a branch, and submit a pull request! 🚀
+
+---
+
+## **📝 License**
+MIT License – Free to use and modify. 😊
+
+---
+
+## **📩 Contact**
+For any inquiries or collaboration, contact:  
+📎 **sufyanamirhamzah@gmail.com**  
+🔗 **GitHub:** [msamhz](https://github.com/msamhz)
+

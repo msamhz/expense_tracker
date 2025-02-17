@@ -1,0 +1,11 @@
+# Prefect for workflow orchestration
+prefect==3.2.2
+
+# PostgreSQL adapter for Python
+psycopg2==2.9.10
+
+# Environment variable management
+python-dotenv==1.0.0
+
+# Data manipulation and processing
+pandas==2.1.4

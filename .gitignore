@@ -1,0 +1,27 @@
+# Ignore environment configuration files
+.env
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environment files (if using venv)
+venv/
+env/
+
+# Ignore logs and temporary files
+logs/
+*.log
+*.out
+*.bak
+.DS_Store  # macOS system file
+Thumbs.db  # Windows system file
+
+# Ignore Jupyter Notebook checkpoints (if using notebooks)
+.ipynb_checkpoints/
+
+# Ignore IDE/project-specific files
+.vscode/
+.idea/
