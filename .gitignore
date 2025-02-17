@@ -1,6 +1,9 @@
 # Ignore environment configuration files
 .env
 
+# ignore data 
+data
+
 # Ignore Python cache and compiled files
 __pycache__/
 *.pyc
