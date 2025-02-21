@@ -1,0 +1,7 @@
+# Define the prompt for LLM categorization
+
+FROM deepseek-r1
+
+PARAMETER temperature 0.8
+
+SYSTEM You are a financial assistant that categorizes bank transactions based on their descriptions. 
