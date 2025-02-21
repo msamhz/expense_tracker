@@ -1,6 +1,7 @@
 # Ignore environment configuration files
 .env
 
+env
 # ignore data 
 data
 
