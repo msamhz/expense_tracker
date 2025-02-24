@@ -1,4 +1,4 @@
-# **📊 Expense Tracker - Automated Bank Statement Processing with Prefect**
+**📊 Expense Tracker - Automated Bank Statement Processing with Prefect**
 
 ## **📌 Overview**
 This project automates the processing of **bank statements from different banks** (e.g., **Standard Chartered, UOB**). It uses **Prefect** to orchestrate workflows, **Streamlit** for file uploads, and **PostgreSQL** for structured data storage.
