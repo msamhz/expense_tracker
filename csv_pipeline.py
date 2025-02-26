@@ -3,6 +3,8 @@ import os
 from prefect import flow, task, get_run_logger
 import re
 from postgres_manager import load_postgres_flow
+from llm_inference import llm_inference
+
 
 # Define file paths
 RAW_DATA_DIR = "data/raw"
@@ -114,9 +116,7 @@ def process_file(file, transaction_lines, file_name):
         logger.info("Processing Standard Chartered transactions...")
         df = sc_preprocess(transaction_lines, file_name)
 
-    # Example: Add a new 'Category' column
-    df["category"] = "Uncategorized"
-    df["subcategory"] = "Uncategorized"
+    df = llm_inference(df)
 
     # Add processed_at timestamp
     df['processed_at'] = pd.Timestamp.now().floor("S")
