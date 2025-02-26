@@ -5,6 +5,9 @@ env
 # ignore data 
 data
 
+# Ignore testing notebook
+test.ipynb
+
 # Ignore Python cache and compiled files
 __pycache__/
 *.pyc
