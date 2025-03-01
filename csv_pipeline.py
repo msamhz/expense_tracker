@@ -4,7 +4,7 @@ from prefect import flow, task, get_run_logger
 import re
 from postgres_manager import load_postgres_flow
 from llm_inference import llm_inference
-
+import asyncio
 
 # Define file paths
 RAW_DATA_DIR = "data/raw"
@@ -62,7 +62,7 @@ def sc_preprocess(transaction_lines: list, filename: str):
 
         # Handle cases where some lines have 4 columns, and others have 5
         if len(parts) >= 4:
-            date = parts[0].strip() if len(parts) > 0 else None
+            date = parts[0].replace("\t", "").strip() if len(parts) > 0 else None
             description = parts[1].strip() if len(parts) > 1 else None
             foreign_currency = parts[2].strip() if len(parts) > 2 and parts[2].strip() else None
             sgd_amount = parts[3].strip().replace("SGD", "").replace("DR", "").strip() if len(parts) > 3 else None
@@ -90,8 +90,26 @@ def sc_preprocess(transaction_lines: list, filename: str):
     # Rename columns to match the standard format
     df_transactions.rename(columns={"Date": "transaction_date", "Description": "description", "SGD Amount": "amount"}, inplace=True)
     
-    # Convert transaction date to standard format for PostGreSQL
-    df_transactions["transaction_date"] = pd.to_datetime(df_transactions["transaction_date"], format="%d/%m/%Y").dt.strftime("%Y-%m-%d")
+    # Clean and normalize date column before conversion
+    df_transactions["transaction_date"] = df_transactions["transaction_date"].astype(str).str.strip()
+    
+    df_transactions["transaction_date"] = (df_transactions["transaction_date"]
+                                .astype(str)  # Ensure it's a string
+                                .str.replace(r"[^\d/]", "", regex=True)  # Remove non-date characters
+                                .str.strip()  # Strip spaces
+                                )
+
+    # Attempt to convert, handling errors gracefully
+    df_transactions["transaction_date"] = pd.to_datetime(
+        df_transactions["transaction_date"], format="%d/%m/%Y", errors="coerce"
+    )
+
+    # Drop rows where conversion failed
+    df_transactions = df_transactions.dropna(subset=["transaction_date"])
+
+    # Format correctly for PostgreSQL
+    df_transactions["transaction_date"] = df_transactions["transaction_date"].dt.strftime("%Y-%m-%d")
+
 
     return df_transactions
 
@@ -142,3 +160,6 @@ def csv_pipeline():
         
 if __name__ == "__main__":
     csv_pipeline()
+
+if __name__ == "__main__":
+    asyncio.run(csv_pipeline())
