@@ -209,7 +209,7 @@ def time_it(func):
         return result
     return wrapper
 
-@flow(name="Async LLM Inference with DeepSeek") 
+@flow(name="LLM Inference") 
 @time_it 
 def llm_inference(df: pd.DataFrame):
     """
