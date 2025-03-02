@@ -10,7 +10,15 @@ from prefect import flow, task, get_run_logger
 # Load environment variables from .env file
 load_dotenv()
 
-# Use environment variables for database configuration
+import os
+import psycopg2
+from dotenv import load_dotenv
+from prefect import task, get_run_logger
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Database configuration using environment variables
 DB_CONFIG = {
     "dbname": os.getenv("DB_NAME", "FinanceTracker"),  # Default: FinanceTracker
     "user": os.getenv("DB_USER", "postgres"),
@@ -19,37 +27,41 @@ DB_CONFIG = {
     "port": os.getenv("DB_PORT", "5432")
 }
 
-@task
+@task(name="Create Transactions Table")
 def create_table():
     """Creates the transactions table in PostgreSQL if it does not exist."""
+    logger = get_run_logger()
+    
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS transactions (
+        id SERIAL PRIMARY KEY,
+        transaction_date DATE NOT NULL,
+        description TEXT NOT NULL,
+        amount NUMERIC(12,2) NOT NULL,
+        category TEXT,
+        subcategory TEXT,
+        bank_account TEXT NOT NULL,  -- ✅ Bank account must not be NULL
+        source_file TEXT,
+        processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT unique_transaction UNIQUE (transaction_date, description, bank_account)  -- ✅ Deduplication rule
+    );
+
+    """
+
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-
-        create_table_query = """
-        CREATE TABLE IF NOT EXISTS transactions (
-            id SERIAL PRIMARY KEY,
-            transaction_date DATE NOT NULL,
-            description TEXT NOT NULL,
-            amount NUMERIC(12,2) NOT NULL,
-            category TEXT,
-            subcategory TEXT,
-            processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT unique_transaction UNIQUE (transaction_date, description, amount)  -- Ensures uniqueness
-        );
-
-        """
-
-        cursor.execute(create_table_query)
-        conn.commit()
-
-        print("Table 'transactions' checked/created successfully.")
-
-        cursor.close()
-        conn.close()
-
+        with psycopg2.connect(**DB_CONFIG) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(create_table_query)
+                conn.commit()
+                logger.info("✅ Table 'transactions' checked/created successfully.")
+    
     except Exception as e:
-        print("Error:", e)
+        logger.error(f"❌ Error creating table: {e}")
+
+
+from psycopg2.extras import execute_values
+import psycopg2
+import pandas as pd
 
 @task(name="Load Postgres")
 def insert_transactions(df: pd.DataFrame):
@@ -62,18 +74,16 @@ def insert_transactions(df: pd.DataFrame):
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
 
-        # insert_query = """
-        # INSERT INTO transactions (transaction_date, description, amount, category, subcategory, processed_at)
-        # VALUES %s
-        # ON CONFLICT (transaction_date, description, amount) DO NOTHING;  -- Skip duplicates
-        # """
-
         insert_query = """
-        INSERT INTO transactions (transaction_date, description, amount, category, subcategory, processed_at)
+        INSERT INTO transactions (
+            transaction_date, description, amount, category, subcategory, 
+            bank_account, source_file, processed_at
+        ) 
         VALUES %s
-        ON CONFLICT (transaction_date, description, amount) DO NOTHING;  -- Skip duplicates
+        ON CONFLICT (transaction_date, description, bank_account) DO NOTHING;  -- ✅ Prevent duplicate entries
         """
-        
+
+        # ✅ Ensure all necessary columns are included
         data_tuples = [
             (
                 row["transaction_date"],
@@ -81,12 +91,15 @@ def insert_transactions(df: pd.DataFrame):
                 row["amount"],
                 row["category"] if isinstance(row["category"], str) else "Uncategorized",
                 row["subcategory"] if isinstance(row["subcategory"], str) else "Uncategorized",
+                row["bank_account"] if isinstance(row["bank_account"], str) else "Unknown Bank",
+                row["source_file"] if "source_file" in df.columns else "Unknown Source",
                 row["processed_at"] if "processed_at" in df.columns else pd.Timestamp.now()
             )
             for _, row in df.iterrows()
         ]
 
-        execute_values(cursor, insert_query, data_tuples)  # Bulk insert
+        # ✅ Bulk insert
+        execute_values(cursor, insert_query, data_tuples)
 
         conn.commit()
         print(f"✅ Inserted {len(df)} new transactions (skipped duplicates).")
@@ -95,7 +108,8 @@ def insert_transactions(df: pd.DataFrame):
         conn.close()
 
     except Exception as e:
-        print("Error:", e)
+        print("❌ Error inserting transactions:", e)
+
 
 @flow(name="Load Postgres Flow")
 def load_postgres_flow(df: pd.DataFrame):
