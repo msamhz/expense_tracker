@@ -10,6 +10,9 @@ This project automates the processing of **bank statements from different banks*
 👉 **Database Storage** in **PostgreSQL** (Prevents duplicates, ensures integrity)  
 👉 **Workflow Automation** with **Prefect** (Data pipeline automation)
 
+![Finance Dashboard](image.png)
+
+
 ---
 
 # **📁 Project Structure**
@@ -115,16 +118,6 @@ python src/pipelines/csv_pipeline.py  # Runs full pipeline
 - **📌 Deploy API for data retrieval** via **FastAPI**  
 - **📌 Add User Authentication** to manage personal finance securely  
 - **📌 Expand Bank Support** beyond **Standard Chartered & UOB**  
-
----
-
-## **👨‍💻 Contributing**
-Feel free to fork this repo, create a branch, and submit a pull request! 🚀
-
----
-
-## **📝 License**
-MIT License – Free to use and modify. 😊
 
 ---
 
