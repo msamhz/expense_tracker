@@ -10,7 +10,7 @@ This project automates the processing of **bank statements from different banks*
 👉 **Database Storage** in **PostgreSQL** (Prevents duplicates, ensures integrity)  
 👉 **Workflow Automation** with **Prefect** (Data pipeline automation)
 
-![Finance Dashboard](image.png)
+![Finance Dashboard](Dashboard_img.png)
 
 
 ---
