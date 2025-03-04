@@ -2,25 +2,13 @@
 import pandas as pd
 import plotly.express as px
 import panel as pn
-import psycopg2
 from sqlalchemy import create_engine
-from dotenv import load_dotenv
-import os
-
-# Load environment variables
-load_dotenv()
+from src import config 
 
 # Enable Panel extensions
 pn.extension('plotly')
 
-# Database connection
-DB_CONFIG = {
-    "dbname": "FinanceTracker",
-    "user": os.getenv("DB_USER", "your_username"),
-    "password": os.getenv("DB_PASSWORD", "your_password"),
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": os.getenv("DB_PORT", "5432")
-}
+DB_CONFIG = config['DB_CONFIG']
 
 def load_data():
     engine = create_engine(f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}")

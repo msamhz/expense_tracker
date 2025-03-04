@@ -9,7 +9,7 @@ import traceback
 import re
 import shutil
 
-from postgres_manager import load_postgres_flow
+from src.utils.postgres_manager import load_postgres_flow
 from src.pipelines.llm_inference import llm_inference
 from src import config
 

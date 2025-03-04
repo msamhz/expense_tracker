@@ -30,17 +30,21 @@ TASK_RUNNER = "ConcurrentTaskRunner"
 # Supported file types
 FILE_EXTENSIONS = ["*.csv", "*.xls", "*.xlsx"]
 
+# Database configuration using environment variables
+DB_CONFIG = {
+    "dbname": DB_NAME,  # Default: FinanceTracker
+    "user": DB_USER,
+    "password": DB_PASSWORD,
+    "host": DB_HOST,
+    "port": DB_PORT
+}
 
 # Export config as a dictionary
 config = {
     "RAW_DATA_DIR": RAW_DATA_DIR,
     "PROCESSED_DATA_DIR": PROCESSED_DATA_DIR,
     "ERROR_DIR": ERROR_DIR,
-    "DB_HOST": DB_HOST,
-    "DB_USER": DB_USER,
-    "DB_PASSWORD": DB_PASSWORD,
-    "DB_NAME": DB_NAME,
-    "DB_PORT": DB_PORT,
+    "DB_CONFIG": DB_CONFIG,
     "TASK_RUNNER": TASK_RUNNER,
     "FILE_EXTENSIONS": FILE_EXTENSIONS,
     'PARAMS_FILE': PARAMS_FILE

@@ -2,7 +2,7 @@ import pandas as pd
 import os
 from prefect import flow, task, get_run_logger
 import re
-from postgres_manager import load_postgres_flow
+from src.utils.postgres_manager import load_postgres_flow
 from src.pipelines.llm_inference import llm_inference
 import asyncio
 

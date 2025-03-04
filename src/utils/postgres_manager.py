@@ -1,31 +1,11 @@
 import psycopg2
-from psycopg2 import sql
-from dotenv import load_dotenv
-import os 
 import pandas as pd
 from psycopg2.extras import execute_values
 from prefect import flow, task, get_run_logger
 
+from src import config 
 
-# Load environment variables from .env file
-load_dotenv()
-
-import os
-import psycopg2
-from dotenv import load_dotenv
-from prefect import task, get_run_logger
-
-# Load environment variables from .env file
-load_dotenv()
-
-# Database configuration using environment variables
-DB_CONFIG = {
-    "dbname": os.getenv("DB_NAME", "FinanceTracker"),  # Default: FinanceTracker
-    "user": os.getenv("DB_USER", "postgres"),
-    "password": os.getenv("DB_PASSWORD", "password"),
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": os.getenv("DB_PORT", "5432")
-}
+DB_CONFIG = config['DB_CONFIG']
 
 @task(name="Create Transactions Table")
 def create_table():
