@@ -1,30 +1,17 @@
 import os
 import pandas as pd
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any
 from prefect import flow, task, get_run_logger
 from prefect.task_runners import ConcurrentTaskRunner
-from dotenv import load_dotenv
 import glob
-import re
-import shutil 
 import traceback
-  
-  
+import re
+import shutil
+
 from postgres_manager import load_postgres_flow
 from llm_inference import llm_inference
-
-# Load environment variables from .env file
-load_dotenv()
-
-# Other configuration
-RAW_DATA_DIR = "data/raw"
-PROCESSED_DATA_DIR = "data/processed"
-ERROR_DIR = "data/error"
-
-# Create directories if they don't exist
-for directory in [RAW_DATA_DIR, PROCESSED_DATA_DIR, ERROR_DIR]:
-    os.makedirs(directory, exist_ok=True)
+from src import config
 
 def check_uob(df: pd.DataFrame) -> bool:
     """
@@ -301,24 +288,24 @@ def read_file(file_path: str) -> str | pd.DataFrame | None:
                 return None  # Return None if all methods fail
             
 @task(name="move_processed_file")
-def move_processed_file(file_path: str, new_filename: str = None, success: bool = True) -> None:
+def move_processed_file(file_path: str, config: dict, new_filename: str = None, success: bool = True) -> None:
     """Move processed file to success or error directory."""
     logger = get_run_logger()
-
     if new_filename is None:
-        new_filename = os.path.basename(file_path)  # Use original filename if not provided
+        new_filename = os.path.basename(file_path)
 
-    destination_dir = PROCESSED_DATA_DIR if success else ERROR_DIR
-    os.makedirs(destination_dir, exist_ok=True)  # Ensure the directory exists
+    destination_dir = config["PROCESSED_DATA_DIR"] if success else config["ERROR_DIR"]
+    os.makedirs(destination_dir, exist_ok=True)
 
     destination = os.path.join(destination_dir, new_filename + ".csv")
 
     try:
-        shutil.move(file_path, destination)  # More robust than os.rename
+        shutil.move(file_path, destination)
         logger.info(f"Moved {file_path} to {destination}")
     except Exception as e:
         logger.error(f"Failed to move {file_path} to {destination}: {e}")
         raise
+
     
 @task(name="parse_transactions")
 def parse_transactions(filename: str, transactions: str) -> pd.DataFrame:
@@ -332,31 +319,30 @@ def parse_transactions(filename: str, transactions: str) -> pd.DataFrame:
 
 
 @task(name="process_file", retries=2)
-def process_file(file_path: str) -> Dict[str, Any]:
+def process_file(file_path: str, config: dict) -> Dict[str, Any]:
     """Process a single file through the entire ETL pipeline."""
     logger = get_run_logger()
     logger.info(f"Processing file: {file_path}")
-    
+
     try:
         # Read the file content
         artifact = read_file(file_path)
-        
         card_name, artifact = detect_bank(artifact)
-        
+
         if card_name == "unknown":
             logger.warning(f"Unknown bank format for {file_path}")
-            move_processed_file(file_path, card_name, success=False)
+            move_processed_file(file_path, config, success=False)
             return {"file": file_path, "status": "error", "reason": "Unknown bank format"}
-        
+
         df = parse_transactions(card_name, artifact)
         df = llm_inference(df)
 
         load_postgres_flow(df)
-        
+
         new_filename = df.get('source_file').tolist()[0]
-        logger.info(f"f{new_filename} Here is the first source_file")
-        move_processed_file(file_path, new_filename, success=True)
-        
+        logger.info(f"{new_filename} Here is the first source_file")
+        move_processed_file(file_path, config, new_filename, success=True)
+
         return {
             "file": file_path,
             "status": "success",
@@ -364,27 +350,23 @@ def process_file(file_path: str) -> Dict[str, Any]:
             "transactions": len(df),
             "dataframe": df
         }
- 
+
     except Exception as e:
-        error_message = traceback.format_exc()  # Get the full traceback
+        error_message = traceback.format_exc()
         logger.error(f"❌ Error processing {file_path}: {error_message}")
-        move_processed_file(file_path, success=False)
+        move_processed_file(file_path, config, success=False)
         return {"file": file_path, "status": "error", "reason": str(e)}
 
-@flow(name="Financial CSV ETL", task_runner=ConcurrentTaskRunner())
-def financial_etl_flow() -> List[Dict[str, Any]]:
-    """Main ETL flow that processes all financial files (CSV, Excel) in parallel, excluding .gitkeep."""
+@flow(name="Financial CSV ETL")
+def financial_etl_flow(config: dict):
+    """Main ETL flow that processes all financial files."""
     logger = get_run_logger()
-    
-    # Supported file extensions
-    file_extensions = ["*.csv", "*.xls", "*.xlsx"]
 
     # Find all matching files in the directory, excluding .gitkeep
     all_files = []
-    for ext in file_extensions:
-        all_files.extend(glob.glob(os.path.join(RAW_DATA_DIR, ext)))
+    for ext in config["FILE_EXTENSIONS"]:
+        all_files.extend(glob.glob(os.path.join(config["RAW_DATA_DIR"], ext)))
 
-    # Exclude .gitkeep explicitly
     all_files = [file for file in all_files if not file.endswith(".gitkeep")]
 
     logger.info(f"Found {len(all_files)} files to process: {all_files}")
@@ -393,13 +375,9 @@ def financial_etl_flow() -> List[Dict[str, Any]]:
         logger.info("No valid financial files found in input directory.")
         return []
 
-    # Process each file in parallel
-    results = []
-    for file_path in all_files:
-        result = process_file.submit(file_path)  # Submit each file for parallel processing
-        results.append(result)
+    results = [process_file.submit(file_path, config) for file_path in all_files]
 
     return results
 
 if __name__ == "__main__":
-    financial_etl_flow()
+    financial_etl_flow(config)

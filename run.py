@@ -1,7 +1,8 @@
 import subprocess
 from prefect import task, flow
 import time
-from etl import financial_etl_flow
+from src.pipelines.etl import financial_etl_flow
+from src import config  # Load the config
 
 @task(name="Launch Dashboard")
 def launch_dashboard():
@@ -20,7 +21,7 @@ def etl_dashboard_pipeline():
     """
     Orchestrates the ETL process followed by launching the dashboard.
     """
-    financial_etl_flow()
+    financial_etl_flow(config)  # Pass config to the ETL flow
     launch_dashboard()
 
 # Run the full pipeline
