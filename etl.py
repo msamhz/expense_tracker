@@ -26,49 +26,84 @@ ERROR_DIR = "data/error"
 for directory in [RAW_DATA_DIR, PROCESSED_DATA_DIR, ERROR_DIR]:
     os.makedirs(directory, exist_ok=True)
 
-# Regex pattern to detect transaction lines (assuming YYYY-MM-DD or DD/MM/YYYY format)
-transaction_pattern = re.compile(r"\b\d{2}/\d{2}/\d{4}\b")
+def check_uob(df: pd.DataFrame) -> bool:
+    """
+    Checks if the given DataFrame corresponds to a UOB transaction file.
 
-@task
-def extract_transaction_lines(file_name: str) -> str:
-    logger = get_run_logger()
-    """Reads the file and extracts only transaction-related lines based on date patterns."""
+    Args:
+        df (pd.DataFrame): The DataFrame loaded from an Excel or CSV file.
 
-    with open(file_name, "r", encoding="utf-8") as file:
-        raw_content = file.readlines()
-
-    # Return the first transaction line as the file name
-    file_name_extracted = raw_content[0].split(",")[0]
-    
-    # Extract only relevant transaction lines
-    transaction_lines = [line.strip() for line in raw_content if transaction_pattern.search(line)]
-
-    if not transaction_lines:
-        logger.info(f"No transaction data found in {file_name}.")
-    else:
-        logger.info(f"Extracted {len(transaction_lines)} transaction lines from {file_name}.")
-    
-    return str(file_name_extracted), transaction_lines
-
-@task(name="detect_bank_format")
-def detect_bank_format(file_path: str) -> Tuple[str, str, Optional[List[str]]]:
-    """Detect which bank format the CSV file is from based on its structure."""
-    logger = get_run_logger()
-    file_name, transaction_lines = extract_transaction_lines(file_path)
-    
+    Returns:
+        bool: True if the DataFrame contains "United Overseas Bank Limited" in the first column, otherwise False.
+    """
     try:
-        if "SIMPLY CASH CREDIT CARD" in file_name:
-            logger.info("Processing Standard Chartered transactions...")
-            return "sc", file_name, transaction_lines
-        elif "UOB Krisflyer CREDIT CARD" in file_name:
-            return "kris", file_name, transaction_lines
-        elif "DBS Altitude CREDIT CARD" in file_name:
-            return "altitude", file_name, transaction_lines
-        else:
-            return "unknown", "unknown", None
+        return "United Overseas Bank Limited" in df.columns[0]
+    except IndexError:
+        return False
+
+def check_sc(raw_content: list) -> bool:
+    """
+    Checks if the given list of strings corresponds to a Standard Chartered (SC) transaction file.
+
+    Args:
+        raw_content (list): A list of strings read from a text-based CSV or UTF-8 file.
+
+    Returns:
+        bool: True if the first transaction line contains "SIMPLY CASH CREDIT CARD", otherwise False.
+    """
+    try:
+        file_name_extracted = raw_content[0].split(",")[0]
+        return "SIMPLY CASH CREDIT CARD" in file_name_extracted
+    except IndexError:
+        return False
+
+def detect_bank(artifact: str | pd.DataFrame) -> tuple[str, pd.DataFrame | list] | None:
+    """
+    Detects the bank type based on the file content. It uses a try-except approach to handle different formats.
+
+    Args:
+        artifact (str | pd.DataFrame): The processed file content, either as a list of strings (for text-based files) or a DataFrame (for Excel/CSV).
+
+    Returns:
+        tuple[str, pd.DataFrame | list] | None:
+            - If a Standard Chartered (SC) file is detected, returns ("Simplified Cashback Card", list of transaction lines).
+            - If a UOB file is detected, returns ("United Overseas Bank Limited", DataFrame).
+            - If no match is found, returns None.
+    """
+    try:
+        # Try detecting Standard Chartered transactions
+        if check_sc(artifact):
+            print("SC transaction detected")
+            transaction_lines = extract_transaction_lines(artifact)
+            return "Simplified Cashback Card", transaction_lines
     except Exception as e:
-        logger.error(f"Error detecting bank format for {file_path}: {e}")
-        return "unknown", "unknown", None
+        pass
+
+        try:
+            # Try detecting United Overseas Bank transactions
+            if check_uob(artifact):
+                print("UOB transaction detected")
+                return "United Overseas Bank Limited", artifact
+        except Exception as e:
+            pass
+
+    print("Bank type could not be detected.")
+    return None, None
+
+def extract_transaction_lines(raw_content: list) -> list:
+    """
+    Extracts only transaction-related lines from a list of strings based on date patterns.
+
+    Args:
+        raw_content (list): List of strings representing the file content.
+
+    Returns:
+        list: Extracted transaction lines containing valid transaction dates.
+    """
+    transaction_pattern = re.compile(r"\b\d{2}/\d{2}/\d{4}\b")  # Matches dates in DD/MM/YYYY format
+
+    transaction_lines = [line.strip() for line in raw_content if transaction_pattern.search(line)]
+    return transaction_lines
 
 @task(name="parse_sc_transactions")
 def parse_sc_transactions(filename: str, transactions: str) -> pd.DataFrame:
@@ -138,22 +173,67 @@ def parse_sc_transactions(filename: str, transactions: str) -> pd.DataFrame:
     return df_transactions
 
 
-@task(name="parse_bank_b")
-def parse_bank_b(file_path: str) -> pd.DataFrame:
-    """Parse Bank B format CSV files."""
-    df = pd.read_csv(file_path)
+@task(name="parse_uob_transactions")
+def parse_uob_transactions(filename: str, df: pd.DataFrame) -> pd.DataFrame:
+    """Parse UOB credit card statements and format to match expected output without re-reading the file."""
+
+    # Define expected column names
+    expected_columns = [
+        "Transaction Date", "Posting Date", "Description", 
+        "Foreign Currency Type", "Transaction Amount(Foreign)", 
+        "Local Currency Type", "Transaction Amount(Local)"
+    ]
+
+    # Escape special characters for regex matching
+    escaped_columns = [re.escape(col) for col in expected_columns]
+
+    # Find the correct header row
+    header_row = None
+    for i in range(15):  # Iterate through first 15 rows
+        if df.iloc[i].astype(str).str.contains('|'.join(escaped_columns), case=False, regex=True, na=False).sum() > 4:
+            header_row = i
+            break
+
+    if header_row is not None:
+        print(f"Header found at row {header_row}")
+    else:
+        print("No suitable header row found within the first 15 rows.")
+        return None  # Stop execution if no header row is found
+
+    # Manually set header row **without re-reading the file**
+    df.columns = df.iloc[header_row]  # Set new header row
+    df = df.iloc[header_row + 2:].reset_index(drop=True)  # Drop the header row and fully reset the index
+
+    # Rename columns to match expected format
+    rename_mapping = {
+        "Transaction Date": "transaction_date",
+        "Description": "description",
+        "Transaction Amount(Local)": "amount"
+    }
     
-    # Standardize column names and formats
-    result_df = pd.DataFrame({
-        "transaction_date": pd.to_datetime(df["Date"]),
-        "description": df["Description"],
-        "amount": df["Credit"].fillna(0) - df["Debit"].fillna(0),
-        "category": df.get("Category", "Uncategorized"),
-        "bank_account": f"Bank B - {df.get('Account', 'Unknown')}",
-        "source_file": os.path.basename(file_path)
-    })
+    # Select relevant columns and rename
+    df = df[list(rename_mapping.keys())].rename(columns=rename_mapping)
+
+    # Ensure "amount" column is numeric
+    df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
+
+    # Clean and normalize date column before conversion
+    df["transaction_date"] = df["transaction_date"].astype(str).str.strip()
     
-    return result_df
+    # Convert date column to YYYY-MM-DD format
+    df["transaction_date"] = pd.to_datetime(
+        df["transaction_date"], format="%d %b %Y", errors="coerce"
+    )
+    
+    # Add bank identifier
+    df["bank_account"] = "UOB"
+
+    # Generate a unique source file name
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    new_filename = f"{timestamp}_{filename}"
+    df["source_file"] = new_filename
+
+    return df
 
 @task(name="parse_bank_c")
 def parse_bank_c(file_path: str) -> pd.DataFrame:
@@ -172,6 +252,51 @@ def parse_bank_c(file_path: str) -> pd.DataFrame:
     
     return result_df
 
+def read_file(file_path: str) -> str | pd.DataFrame | None:
+    """
+    Reads a given file and returns its content in an appropriate format.
+
+    Attempt order:
+    1. Reads as a UTF-8 text file and returns a list of strings.
+    2. If UTF-8 fails, attempts to read as an Excel file (`.xls` or `.xlsx`) and returns a DataFrame.
+    3. If Excel fails, attempts to read as a CSV and returns a DataFrame.
+    4. If all attempts fail, returns None.
+
+    Args:
+        file_path (str): The path to the file.
+
+    Returns:
+        str | pd.DataFrame | None:
+            - List of strings if read as a UTF-8 text file.
+            - DataFrame if read as an Excel or CSV file.
+            - None if all reading attempts fail.
+    """
+    try:
+        with open(file_path, "r", encoding="utf-8") as file:
+            raw_content = file.readlines()
+        print("File read successfully as UTF-8 text.")
+        return raw_content  # Returns a list of strings
+
+    except UnicodeDecodeError:
+        print("UTF-8 decoding failed. Trying as an Excel file...")
+
+        try:
+            df = pd.read_excel(file_path, engine="xlrd")
+            print("File read successfully as Excel.")
+            return df  # Returns a DataFrame
+
+        except Exception as e:
+            print(f"Excel reading failed: {e}. Trying as a CSV...")
+
+            try:
+                df = pd.read_csv(file_path)
+                print("File read successfully as CSV.")
+                return df  # Returns a DataFrame
+
+            except Exception as e:
+                print(f"CSV reading failed: {e}. Unable to process file.")
+                return None  # Return None if all methods fail
+            
 @task(name="move_processed_file")
 def move_processed_file(file_path: str, new_filename: str = None, success: bool = True) -> None:
     """Move processed file to success or error directory."""
@@ -193,14 +318,14 @@ def move_processed_file(file_path: str, new_filename: str = None, success: bool 
         raise
     
 @task(name="parse_transactions")
-def parse_transactions(filename: str, bank_format: str, transactions: str) -> pd.DataFrame:
+def parse_transactions(filename: str, transactions: str) -> pd.DataFrame:
     """Parse bank transactions based on detected format."""
     parser_functions = {
-        "sc": parse_sc_transactions,
-        "bank_b": parse_bank_b,
+        "Simplified Cashback Card": parse_sc_transactions,
+        "United Overseas Bank Limited": parse_uob_transactions,
         "bank_c": parse_bank_c
     }
-    return parser_functions[bank_format](filename, transactions)
+    return parser_functions[filename](filename, transactions)
 
 
 @task(name="process_file", retries=2)
@@ -210,14 +335,17 @@ def process_file(file_path: str) -> Dict[str, Any]:
     logger.info(f"Processing file: {file_path}")
     
     try:
-        bank_format, filename, transactions = detect_bank_format(file_path)
+        # Read the file content
+        artifact = read_file(file_path)
         
-        if bank_format == "unknown":
+        card_name, artifact = detect_bank(artifact)
+        
+        if card_name == "unknown":
             logger.warning(f"Unknown bank format for {file_path}")
-            move_processed_file(file_path, filename, success=False)
+            move_processed_file(file_path, card_name, success=False)
             return {"file": file_path, "status": "error", "reason": "Unknown bank format"}
         
-        df = parse_transactions(filename, bank_format, transactions)
+        df = parse_transactions(card_name, artifact)
         df = llm_inference(df)
 
         load_postgres_flow(df)
@@ -229,7 +357,7 @@ def process_file(file_path: str) -> Dict[str, Any]:
         return {
             "file": file_path,
             "status": "success",
-            "bank_format": bank_format,
+            "bank_format": card_name,
             "transactions": len(df),
             "dataframe": df
         }
@@ -242,25 +370,32 @@ def process_file(file_path: str) -> Dict[str, Any]:
 
 @flow(name="Financial CSV ETL", task_runner=ConcurrentTaskRunner())
 def financial_etl_flow() -> List[Dict[str, Any]]:
-    """Main ETL flow that processes all CSV files in parallel."""
+    """Main ETL flow that processes all financial files (CSV, Excel) in parallel, excluding .gitkeep."""
     logger = get_run_logger()
-    # Find all CSV files in the input directory
-    csv_files = glob.glob(os.path.join(RAW_DATA_DIR, "*.csv"))
-    logger.info(f"Found {len(csv_files)} CSV files to process")
     
-    if not csv_files:
-        logger.info("No CSV files found in input directory")
+    # Supported file extensions
+    file_extensions = ["*.csv", "*.xls", "*.xlsx"]
+
+    # Find all matching files in the directory, excluding .gitkeep
+    all_files = []
+    for ext in file_extensions:
+        all_files.extend(glob.glob(os.path.join(RAW_DATA_DIR, ext)))
+
+    # Exclude .gitkeep explicitly
+    all_files = [file for file in all_files if not file.endswith(".gitkeep")]
+
+    logger.info(f"Found {len(all_files)} files to process: {all_files}")
+
+    if not all_files:
+        logger.info("No valid financial files found in input directory.")
         return []
-    
-    logger.info(f"Found {len(csv_files)} CSV files to process")
-    
+
     # Process each file in parallel
     results = []
-    for file_path in csv_files:
-        # The map function allows these tasks to run in parallel
-        result = process_file.submit(file_path)
+    for file_path in all_files:
+        result = process_file.submit(file_path)  # Submit each file for parallel processing
         results.append(result)
-    
+
     return results
 
 if __name__ == "__main__":
