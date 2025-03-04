@@ -58,6 +58,7 @@ def check_sc(raw_content: list) -> bool:
         return False
 
 def detect_bank(artifact: str | pd.DataFrame) -> tuple[str, pd.DataFrame | list] | None:
+    logger = get_run_logger()
     """
     Detects the bank type based on the file content. It uses a try-except approach to handle different formats.
 
@@ -73,7 +74,7 @@ def detect_bank(artifact: str | pd.DataFrame) -> tuple[str, pd.DataFrame | list]
     try:
         # Try detecting Standard Chartered transactions
         if check_sc(artifact):
-            print("SC transaction detected")
+            logger.info("SC transaction detected")
             transaction_lines = extract_transaction_lines(artifact)
             return "Simplified Cashback Card", transaction_lines
     except Exception as e:
@@ -82,12 +83,12 @@ def detect_bank(artifact: str | pd.DataFrame) -> tuple[str, pd.DataFrame | list]
         try:
             # Try detecting United Overseas Bank transactions
             if check_uob(artifact):
-                print("UOB transaction detected")
+                logger.info("UOB transaction detected")
                 return "United Overseas Bank Limited", artifact
         except Exception as e:
             pass
 
-    print("Bank type could not be detected.")
+    logger.info("Bank type could not be detected.")
     return None, None
 
 def extract_transaction_lines(raw_content: list) -> list:
@@ -175,6 +176,7 @@ def parse_sc_transactions(filename: str, transactions: str) -> pd.DataFrame:
 
 @task(name="parse_uob_transactions")
 def parse_uob_transactions(filename: str, df: pd.DataFrame) -> pd.DataFrame:
+    logger = get_run_logger()
     """Parse UOB credit card statements and format to match expected output without re-reading the file."""
 
     # Define expected column names
@@ -195,9 +197,9 @@ def parse_uob_transactions(filename: str, df: pd.DataFrame) -> pd.DataFrame:
             break
 
     if header_row is not None:
-        print(f"Header found at row {header_row}")
+        logger.info(f"Header found at row {header_row}")
     else:
-        print("No suitable header row found within the first 15 rows.")
+        logger.info("No suitable header row found within the first 15 rows.")
         return None  # Stop execution if no header row is found
 
     # Manually set header row **without re-reading the file**
@@ -253,6 +255,7 @@ def parse_bank_c(file_path: str) -> pd.DataFrame:
     return result_df
 
 def read_file(file_path: str) -> str | pd.DataFrame | None:
+    logger = get_run_logger()
     """
     Reads a given file and returns its content in an appropriate format.
 
@@ -274,27 +277,27 @@ def read_file(file_path: str) -> str | pd.DataFrame | None:
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             raw_content = file.readlines()
-        print("File read successfully as UTF-8 text.")
+        logger.info("File read successfully as UTF-8 text.")
         return raw_content  # Returns a list of strings
 
     except UnicodeDecodeError:
-        print("UTF-8 decoding failed. Trying as an Excel file...")
+        logger.info("UTF-8 decoding failed. Trying as an Excel file...")
 
         try:
             df = pd.read_excel(file_path, engine="xlrd")
-            print("File read successfully as Excel.")
+            logger.info("File read successfully as Excel.")
             return df  # Returns a DataFrame
 
         except Exception as e:
-            print(f"Excel reading failed: {e}. Trying as a CSV...")
+            logger.info(f"Excel reading failed: {e}. Trying as a CSV...")
 
             try:
                 df = pd.read_csv(file_path)
-                print("File read successfully as CSV.")
+                logger.info("File read successfully as CSV.")
                 return df  # Returns a DataFrame
 
             except Exception as e:
-                print(f"CSV reading failed: {e}. Unable to process file.")
+                logger.info(f"CSV reading failed: {e}. Unable to process file.")
                 return None  # Return None if all methods fail
             
 @task(name="move_processed_file")
