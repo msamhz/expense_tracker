@@ -31,8 +31,8 @@ def generate_prompt(description: str) -> str:
     ### There should only be 
     - **Food & Dining**
         - Eat Out
-        - Grab Food
-        - Work Lunch (Lunch hours Mon-Fri - please look at the transaction date and determine if its on the weekday)
+        - Grab Food (usually has grab in the description)
+        - Work Lunch (Lunch hours Mon-Fri - please look at the transaction date and determine if its on the weekday, usually Koufu, Kopitiam, Food Court, Hawker Centre or other food places)
 
     - **Transportation**
         - Grab Car/Taxi
