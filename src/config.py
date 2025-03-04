@@ -7,6 +7,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 # Directories
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Base directory of src
 DATA_DIR = os.path.join(BASE_DIR, "..", "data")
+PARAMS_FILE = os.path.join(BASE_DIR, "params.yaml")
 
 RAW_DATA_DIR = os.path.join(DATA_DIR, "raw")
 PROCESSED_DATA_DIR = os.path.join(DATA_DIR, "processed")
@@ -29,6 +30,7 @@ TASK_RUNNER = "ConcurrentTaskRunner"
 # Supported file types
 FILE_EXTENSIONS = ["*.csv", "*.xls", "*.xlsx"]
 
+
 # Export config as a dictionary
 config = {
     "RAW_DATA_DIR": RAW_DATA_DIR,
@@ -40,5 +42,6 @@ config = {
     "DB_NAME": DB_NAME,
     "DB_PORT": DB_PORT,
     "TASK_RUNNER": TASK_RUNNER,
-    "FILE_EXTENSIONS": FILE_EXTENSIONS
+    "FILE_EXTENSIONS": FILE_EXTENSIONS,
+    'PARAMS_FILE': PARAMS_FILE
 }

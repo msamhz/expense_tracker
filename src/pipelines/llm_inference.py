@@ -10,15 +10,14 @@ import json
 import time
 import functools
 
+from src.config import config
+
 # Load params.yaml
-with open("params.yaml", "r") as file:
+with open(config['PARAMS_FILE'], "r") as file:
     params = yaml.safe_load(file)
     
 MAX_WORKERS = params["llm_inference"]["max_workers"]
 MODEL_NAME = params["llm_inference"]["model_name"]
-
-# Load environment variables
-load_dotenv()
 
 # Define function to generate structured prompts
 def generate_prompt(description: str) -> str:
