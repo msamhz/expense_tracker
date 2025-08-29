@@ -32,3 +32,15 @@ Thumbs.db  # Windows system file
 # Ignore IDE/project-specific files
 .vscode/
 .idea/
+
+src/llm_params.yaml
+
+# for phi4 training and inference
+# Need to download this manually if need to do other places 
+notebook/phi4_sql_sft*
+notebook/phi4_ollama_ready*
+notebook/unsloth*
+
+# for models
+src/model/*
+
