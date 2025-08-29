@@ -98,17 +98,25 @@ def parse_sc_transactions(filename: str, transactions: str) -> pd.DataFrame:
     """Parse Standard Charted format CSV files."""
     
     transaction_data = []
-
+    
     for line in transactions:
         parts = line.split(",")  # Split by commas
 
-        # Handle cases where some lines have 4 columns, and others have 5
         if len(parts) >= 4:
+    
+            amount_text = parts[3].lower() if len(parts) > 3 else ""
+            extra_text = parts[4].lower() if len(parts) > 4 else ""
+            
+            # Skip if "dbs money send" or "cashback" is found in either field
+            if ("dbs money send" in amount_text or "dbs money send" in extra_text or
+                "cashback" in amount_text or "cashback" in extra_text):
+                continue
+                
             date = parts[0].replace("\t", "").strip() if len(parts) > 0 else None
             description = parts[1].strip() if len(parts) > 1 else None
             foreign_currency = parts[2].strip() if len(parts) > 2 and parts[2].strip() else None
             sgd_amount = parts[3].strip().replace("SGD", "").replace("DR", "").strip() if len(parts) > 3 else None
-            extra_column = parts[4].strip().replace("SGD", "").replace("DR", "").strip() if len(parts) > 4 else None  # 5th column if available
+            extra_column = parts[4].strip().replace("SGD", "").replace("DR", "").strip() if len(parts) > 4 else None
 
             # Append to list
             transaction_data.append([date, description, foreign_currency, sgd_amount, extra_column])
