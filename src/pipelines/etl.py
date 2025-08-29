@@ -305,7 +305,8 @@ def move_processed_file(file_path: str, config: dict, new_filename: str = None, 
     destination_dir = config["PROCESSED_DATA_DIR"] if success else config["ERROR_DIR"]
     os.makedirs(destination_dir, exist_ok=True)
 
-    destination = os.path.join(destination_dir, new_filename + ".csv")
+    extension = ".csv" if not new_filename.endswith(('.xls', '.xlsx')) else ""
+    destination = os.path.join(destination_dir, new_filename + extension)
 
     try:
         shutil.move(file_path, destination)
