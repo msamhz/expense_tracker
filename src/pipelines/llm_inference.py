@@ -36,11 +36,11 @@ def generate_prompt(description: str) -> str:
     - **Transportation**
         - Grab Car/Taxi
         - GetGo Rental Car
-        - Car Refuel (Shell, Esso, SPC, Caltex)
-        - Public Transport (MRT, Bus, SMRT, SBS)
+        - Car Refuel (e.g. Shell, Esso, SPC, Caltex)
+        - Public Transport (e.g. MRT, Bus, SMRT, SBS)
 
     - **Groceries**
-        - Groceries (NTUC, Cold Storage, Giant, Sheng Siong)
+        - Groceries (e.g. NTUC, Cold Storage, Giant, Sheng Siong, FP which is FairPrice)
     
     - **Shopping**
         - Online Shopping (e.g., Shopee, Lazada, Amazon, Taobao)    
@@ -48,23 +48,23 @@ def generate_prompt(description: str) -> str:
         - Department Store to be considered as "Retail Shop" (e.g., Takashimaya, Isetan, Metro, BHG, OG, Robinsons)
         
     - **Utilities**
-        - Mobile Phone (M1, Singtel, Starhub)
-        - Cash Card (NetsFlashPay, EZ-Link)
-        - Internet & Cable TV
-        - Electricity & Gas (SP Services)
+        - Mobile Phone (e.g. M1, Singtel, Starhub)
+        - Cash Card (e.g. NetsFlashPay, EZ-Link)
+        - Internet & Cable TV (e.g. Starhub, Singtel, M1)
+        - Electricity & Gas (e.g. SP Services)
         - Subscriptions (e.g., Netflix, Spotify, Github, AWS)
-        - Other payments (AXS, SAM)
+        - Other payments (e.g. AXS, SAM)
         
     - **Others**
         - Sport
         - Leisure
         - Gifts
-        - Household Items (Furniture, TV, Water Dispenser)
+        - Household Items (e.g. Furniture, TV, Water Dispenser)
         - Renovation Works
-        - Medical (Clinic, Pharmacy, Doctors)
-        - Insurance (Prudential (called Pru), AIA, Aviva)
+        - Medical (e.g. Clinic, Pharmacy, Doctors)
+        - Insurance (e.g. Prudential (called Pru), AIA, Aviva)
         - Investments
-        - Renovation vendors (Hydroflux marketing, knockknock, azora, C P lighting)
+        - Renovation vendors (e.g. Hydroflux marketing, knockknock, azora, C P lighting)
 
 
     ### **Few-Shot Examples for Learning (Format Consistency)**
