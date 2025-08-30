@@ -13,6 +13,8 @@ from src.utils.postgres_manager import load_postgres_flow
 from src.pipelines.llm_inference import llm_inference
 from src import config
 
+import pdfplumber
+
 def check_uob(df: pd.DataFrame) -> bool:
     """
     Checks if the given DataFrame corresponds to a UOB transaction file.
@@ -263,16 +265,17 @@ def read_file(file_path: str) -> str | pd.DataFrame | None:
 
     Attempt order:
     1. Reads as a UTF-8 text file and returns a list of strings.
-    2. If UTF-8 fails, attempts to read as an Excel file (`.xls` or `.xlsx`) and returns a DataFrame.
-    3. If Excel fails, attempts to read as a CSV and returns a DataFrame.
-    4. If all attempts fail, returns None.
+    2. If UTF-8 fails, attempts to read as a PDF file using pdfplumber and returns a list of strings.
+    3. If PDF fails, attempts to read as an Excel file (`.xls` or `.xlsx`) and returns a DataFrame.
+    4. If Excel fails, attempts to read as a CSV and returns a DataFrame.
+    5. If all attempts fail, returns None.
 
     Args:
         file_path (str): The path to the file.
 
     Returns:
         str | pd.DataFrame | None:
-            - List of strings if read as a UTF-8 text file.
+            - List of strings if read as a UTF-8 text file or PDF.
             - DataFrame if read as an Excel or CSV file.
             - None if all reading attempts fail.
     """
@@ -283,24 +286,39 @@ def read_file(file_path: str) -> str | pd.DataFrame | None:
         return raw_content  # Returns a list of strings
 
     except UnicodeDecodeError:
-        logger.info("UTF-8 decoding failed. Trying as an Excel file...")
+        logger.info("UTF-8 decoding failed. Trying as a PDF file...")
 
         try:
-            df = pd.read_excel(file_path, engine="xlrd")
-            logger.info("File read successfully as Excel.")
-            return df  # Returns a DataFrame
+            
+            with pdfplumber.open(file_path) as pdf:
+                text_content = []
+                for page in pdf.pages:
+                    text = page.extract_text() or ""
+                    # Normalize whitespace for consistent parsing
+                    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+                    text_content.extend(lines)
+            logger.info("File read successfully as PDF.")
+            return text_content  # Returns a list of strings
 
         except Exception as e:
-            logger.info(f"Excel reading failed: {e}. Trying as a CSV...")
+            logger.info(f"PDF reading failed: {e}. Trying as an Excel file...")
 
             try:
-                df = pd.read_csv(file_path)
-                logger.info("File read successfully as CSV.")
+                df = pd.read_excel(file_path, engine="xlrd")
+                logger.info("File read successfully as Excel.")
                 return df  # Returns a DataFrame
 
             except Exception as e:
-                logger.info(f"CSV reading failed: {e}. Unable to process file.")
-                return None  # Return None if all methods fail
+                logger.info(f"Excel reading failed: {e}. Trying as a CSV...")
+
+                try:
+                    df = pd.read_csv(file_path)
+                    logger.info("File read successfully as CSV.")
+                    return df  # Returns a DataFrame
+
+                except Exception as e:
+                    logger.info(f"CSV reading failed: {e}. Unable to process file.")
+                    return None  # Return None if all methods fail
             
 @task(name="move_processed_file")
 def move_processed_file(file_path: str, config: dict, new_filename: str = None, success: bool = True) -> None:
