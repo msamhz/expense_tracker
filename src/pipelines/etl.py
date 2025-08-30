@@ -44,8 +44,13 @@ def check_sc(raw_content: list) -> bool:
     except IndexError:
         return False
 
+def check_dbs(raw_content: list) -> bool:
+    for t in raw_content:
+        if 'DBS Altitude' in t:
+            return True
+    return False
+
 def detect_bank(artifact: str | pd.DataFrame) -> tuple[str, pd.DataFrame | list] | None:
-    logger = get_run_logger()
     """
     Detects the bank type based on the file content. It uses a try-except approach to handle different formats.
 
