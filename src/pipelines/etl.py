@@ -61,24 +61,26 @@ def detect_bank(artifact: str | pd.DataFrame) -> tuple[str, pd.DataFrame | list]
         tuple[str, pd.DataFrame | list] | None:
             - If a Standard Chartered (SC) file is detected, returns ("Simplified Cashback Card", list of transaction lines).
             - If a UOB file is detected, returns ("United Overseas Bank Limited", DataFrame).
+            - If a DBS file is detected, returns ("DBS Altitude", list of raw content).
             - If no match is found, returns None.
     """
-    try:
-        # Try detecting Standard Chartered transactions
+    logger = get_run_logger()
+    
+    # Check for different bank types based on artifact type
+    if isinstance(artifact, list):
+        # For text-based files (list of strings)
         if check_sc(artifact):
             logger.info("SC transaction detected")
             transaction_lines = extract_transaction_lines(artifact)
             return "Simplified Cashback Card", transaction_lines
-    except Exception as e:
-        pass
-
-        try:
-            # Try detecting United Overseas Bank transactions
-            if check_uob(artifact):
-                logger.info("UOB transaction detected")
-                return "United Overseas Bank Limited", artifact
-        except Exception as e:
-            pass
+        elif check_dbs(artifact):
+            logger.info("DBS transaction detected")
+            return "DBS Altitude", artifact
+    elif isinstance(artifact, pd.DataFrame):
+        # For DataFrame files (Excel/CSV)
+        if check_uob(artifact):
+            logger.info("UOB transaction detected")
+            return "United Overseas Bank Limited", artifact
 
     logger.info("Bank type could not be detected.")
     return None, None
